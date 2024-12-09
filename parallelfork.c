@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
   int localvar;
   int *heapptr;
   int forkno, numforks;
+    FILE* file = stdout;
   static int staticvar;
   if (argc > 1) {
     numforks = atoi(argv[1]);
@@ -23,14 +24,16 @@ int main(int argc, char **argv) {
     numforks = 5;
   }
   printf("%s will fork %d times\n",argv[0],numforks);
-      
+     fflush(file);
+       
   heapptr = (int *)malloc(8*sizeof(int));
   localvar=0x01;
   staticvar = 0x11;
   globalvar = 0x21;
   heapptr[0]= 0x31;
   printf("Initial local, static, global, heap = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
-
+     fflush(file);
+ 
   for (forkno=0; forkno<numforks; forkno++) {
     cpid = fork();
     if (cpid == -1) {
@@ -41,41 +44,49 @@ int main(int argc, char **argv) {
 
     if (cpid == 0) {
       /* Child */
+      // Do some stuff
       printf("Child %d: PID %d, parent PID %d, uid %d, euid %d, gid %d, egid %d\n",
 	     forkno, getpid(), getppid(), getuid(), geteuid(), getgid(), getegid());
       printf(" child local, static, global = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
+      fflush(file);
       localvar  = 0x02;
       staticvar = 0x12;
       globalvar = 0x22;
       heapptr[0]= 0x32;
       printf(" child changed local, static, global = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
-      exit(forkno);
+      fflush(file);
+      // Give others a chance to start before exitting
+      sleep(10);
+       exit(forkno);
     } else {
       /* Parent */
-      printf("parent before check if child exitted local, static, global = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
-      do {
-	w = waitpid(cpid,&status, WUNTRACED | WCONTINUED);
-	if (w == -1) {
-	  perror("Waitpid failed");
-	  exit(-1);
-	}
-	if (WIFEXITED(status)) {
-	  printf("exited, status=%d\n", WEXITSTATUS(status));
-	} else if (WIFSIGNALED(status)) {
-	  printf("killed by signal %d\n", WTERMSIG(status));
-	} else if (WIFSTOPPED(status)) {
-	  printf("stopped by signal %d\n", WSTOPSIG(status));
-	} else if (WIFCONTINUED(status)) {
-	  printf("continued\n");
-	}
-      } while (!WIFEXITED(status) && !WIFSIGNALED(status));
-      printf("parent after child exitted local, static, global = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
-      localvar  = 0x03;
-      staticvar = 0x13;
-      globalvar = 0x23;
-      heapptr[0]= 0x33;
-      printf("parent changed local, static, global = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
-    }   
+      // Just keep creating more children
+    }
   }
+  // Now wait on children ending - probably will not see each exit
+  do {
+    w = waitpid(cpid,&status, WUNTRACED | WCONTINUED);
+    if (w == -1) {
+      // No more children were left
+      break;
+    }
+    if (WIFEXITED(status)) {
+      printf("exited, status=%d\n", WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+      printf("killed by signal %d\n", WTERMSIG(status));
+    } else if (WIFSTOPPED(status)) {
+      printf("stopped by signal %d\n", WSTOPSIG(status));
+    } else if (WIFCONTINUED(status)) {
+      printf("continued\n");
+    }
+  } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+  printf("parent after all children exitted local, static, global = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
+  localvar  = 0x03;
+  staticvar = 0x13;
+  globalvar = 0x23;
+  heapptr[0]= 0x33;
+  printf("parent changed local, static, global = %02x %02x %02x %02x\n",localvar,staticvar,globalvar,heapptr[0]);
+  fflush(file);
+
   return 0;
 }

@@ -12,7 +12,7 @@ struct message {
 
 int main() {
     key_t key;
-    int msgid;
+    int msgid, newmsgid;
     int szrecvd;
     FILE* file = stdout;
 
@@ -24,6 +24,14 @@ int main() {
 
     if (msgid == -1) {
         perror("msgget failed");
+        exit(1);
+    }
+
+    // Try again while first queue exits.  Should fail.
+    newmsgid = msgget(key, 0666 | IPC_CREAT | IPC_EXCL);  // 0666 sets permissions for read and write
+
+    if (newmsgid != -1) {
+        perror("msgget which should fail did not");
         exit(1);
     }
 

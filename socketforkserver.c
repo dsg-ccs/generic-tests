@@ -10,11 +10,11 @@
 #define PORT 8080
 #define NUM_THREADS 3
 #define BUFFER_SIZE 1024
-#define TIMEOUT 5000 // Poll timeout in milliseconds (5 seconds)
+#define TIMEOUT 5000000 // Poll timeout in milliseconds in docs but seems microseconds (5 seconds)
+FILE* file;
 
 // Function to handle the client thread
 void *client_thread(void *id) {
-    FILE* file = stdout;
     int thread_id = *((int*)id);
     int sock = 0;
     struct sockaddr_in server_addr;
@@ -58,15 +58,17 @@ void *client_thread(void *id) {
     close(sock);
     printf("Client %d: Closed socket\n",thread_id);
     fflush(file);
-    return NULL;
+    pthread_exit(NULL);
 }
 
 void closefd(int i, int fd) {
   if (close(fd) == -1) {
     perror("Error closing fd");
     printf("Error closing fd %d %d\n",i,fd);
+    fflush(file);
   } else {
     printf("Closed fd %d %d\n",i,fd);
+    fflush(file);
   }
 }
 
@@ -78,7 +80,6 @@ void *server_thread() {
     int addrlen = sizeof(address);
     char buffer[BUFFER_SIZE] = {0};
     char *response = "Hello from server";
-    FILE* file = stdout;
     struct pollfd fds[NUM_THREADS];
     int num_fds = 0;
     int num_open = 0;
@@ -124,7 +125,7 @@ void *server_thread() {
 
     // Poll loop to check for incoming messages
     num_open = num_fds;
-    while ((num_open > 0) || (timeouts > 3)) {
+    while ((num_open > 0) && (timeouts < 3)) {
 
         // Poll the sockets for any activity
         int poll_count = poll(fds, num_fds, TIMEOUT);
@@ -179,9 +180,9 @@ void *server_thread() {
 int main() {
     pthread_t threads[NUM_THREADS];
     int thread_ids[NUM_THREADS];
-    FILE* file = stdout;
     pid_t cpid,w;
     int status;
+    file = stdout;
 
     cpid = fork();
     if (cpid == -1) {

@@ -19,17 +19,30 @@ void* print_thread_id(void* id) {
     }
     printf("Our thread %d is running as pid, tid: %d,%d %s\n", thread_id,getpid(),gettid(),pad);
     fflush(file);
+    sleep(10);
+    printf("Our thread %d is running as pid, tid: %d,%d ready to exit\n", thread_id,getpid(),gettid());
+    fflush(file);
     *exitval=thread_id;
     pthread_exit((void *)exitval);
 }
 
+#define MAXTHREADS 20
 int main(int argc, char**argv, char**envp) {
     int num_threads = 5;
-    pthread_t threads[num_threads];
-    int thread_ids[num_threads];
+    pthread_t threads[MAXTHREADS];
+    int thread_ids[MAXTHREADS];
     char pad[]="           ";
     FILE* file = stdout;
+    if (argc > 1) {
+      num_threads = atoi(argv[1]);
+      if (num_threads > MAXTHREADS) {
+	num_threads = MAXTHREADS;
+      }
+    }
 
+    printf("%s will create %d threads\n",argv[0],num_threads);
+    fflush(file);
+ 
     // Create the threads
     for(int i = 0; i < num_threads; i++) {
         thread_ids[i] = i + 1;

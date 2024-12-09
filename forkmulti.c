@@ -24,8 +24,13 @@ pid_t callsys(const char*name) {
       // Run server thread
       char* argv[] = { NULL };
       char* envp[] = { NULL };
-      if (execve(name, argv, envp) == -1) {
-	printf("Failed to start %s\n",name);
+      printf("Bed time for forked child\n");
+      fflush(file);
+      sleep(4);
+      printf("Forked child awoke\n");
+      fflush(file);
+      if (execve("./hello-stat", argv, envp) == -1) {
+	printf("Failed to start ./hello-stat\n");
 	perror("Could not execve");
       }
     } else {
