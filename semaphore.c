@@ -23,9 +23,28 @@ void sem_op(int semid, int semnum, int op) {
     }
 }
 
-int main() {
+void multisem_op(int semid, int lowsemnum, int highsemnum, int op) {
+    struct sembuf sb[highsemnum-lowsemnum];
+    int semnum;
+    for (semnum=lowsemnum; semnum < highsemnum; semnum++) {
+      sb[semnum].sem_num = semnum;
+      sb[semnum].sem_op = op;
+      sb[semnum].sem_flg = SEM_UNDO|IPC_NOWAIT;
+    }
+    if (semop(semid, sb, highsemnum-lowsemnum) == -1) {
+        perror("semop");
+        exit(1);
+    }
+}
+
+int main(int argc, char**argv, char**envp) {
     int shmid, semid;
     char *shared_memory;
+    int numtrans = 5;
+    setbuf(stdout,NULL);
+    if (argc > 1) {
+      numtrans = atoi(argv[1]);
+    }
 
     // Create shared memory
     shmid = shmget(SHM_KEY, SHM_SIZE, IPC_CREAT | 0666);
@@ -42,7 +61,7 @@ int main() {
     }
 
     // Create semaphores
-    semid = semget(SEM_KEY, 2, IPC_CREAT | 0666); // 2 semaphores: empty and full
+    semid = semget(SEM_KEY, 6, IPC_CREAT | 0666); // 6 semaphores: empty and full and 4 scratch
     if (semid == -1) {
         perror("semget");
         exit(1);
@@ -51,10 +70,14 @@ int main() {
     // Initialize semaphores
     semctl(semid, 0, SETVAL, 1); // empty semaphore
     semctl(semid, 1, SETVAL, 0); // full semaphore
+    for (int i=2; i<6; i++){
+      semctl(semid, i, SETVAL, 0);
+    }
+    multisem_op(semid,2,6,1); // Increment all these semaphores just to see it happen
 
     if (fork() == 0) {
         // Producer process
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < numtrans; i++) {
             sem_op(semid, 0, -1); // Wait on empty semaphore
 
             snprintf(shared_memory, SHM_SIZE, "Message %d from Producer", i + 1);
@@ -68,7 +91,7 @@ int main() {
         exit(0);
     } else {
         // Consumer process
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < numtrans; i++) {
             sem_op(semid, 1, -1); // Wait on full semaphore
 
             printf("Consumer: Read '%s'\n", shared_memory);
