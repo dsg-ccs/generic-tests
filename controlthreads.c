@@ -1,3 +1,6 @@
+#include <sys/ioctl.h>
+#include <string.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -8,9 +11,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#define MAXTHREADS 20
-#define PIPE_NAME "/tmp/heterothreads_pipe"
+#define MAXTHREADS 100
+#define PIPE_NAME "/tmp/controlthreads_pipe"
 #define BUFFER_SIZE
+#define DEVICE_NAME "/dev/mydevice"
+#define IOCTL_WRITE _IOW('Q', 1, char *)
+#define IOCTL_READ  _IOR('Q', 2, char *)
 
 
 // For some reason this is not declared in header files
@@ -165,7 +171,53 @@ void* pipereader(void* id){
     pthread_exit((void *)exitval);
 }
 
-int main(int argc, char**argv, char**envp) {
+void *useioctls(void *id) {
+    int fd;
+    char write_buf[] = "Hello, device!";
+    char read_buf[100];
+    int *exitval = malloc(sizeof(int));
+
+    const char *devname = DEVICE_NAME;
+    // Open the device file
+    fd = open(devname, O_RDWR);
+    if (fd < 0) {
+        perror("Failed to open the device");
+        *exitval = EXIT_FAILURE;
+	goto exit;
+    }
+
+    // Write data using ioctl
+    if (ioctl(fd, IOCTL_WRITE, write_buf) < 0) {
+        perror("Failed to write via ioctl");
+        close(fd);
+        *exitval = EXIT_FAILURE;
+	goto exit;
+    }
+    printf("Data written: %s\n", write_buf);
+
+    // Read data using ioctl
+    memset(read_buf, 0, sizeof(read_buf));
+    if (ioctl(fd, IOCTL_READ, read_buf) < 0) {
+        perror("Failed to read via ioctl");
+        close(fd);
+        *exitval = EXIT_FAILURE;
+	goto exit;
+    }
+    printf("Data read: %s\n", read_buf);
+
+    if (strncmp(write_buf,read_buf,sizeof(write_buf)) != 0){
+      printf("Read did not match write %s != %s",read_buf,write_buf);
+    }
+
+    // Close the device file
+    close(fd);
+    *exitval =  EXIT_SUCCESS;
+ exit:
+    pthread_exit((void *)exitval);
+
+}
+
+int makethreads() {
     struct threaddef defs[MAXTHREADS];
     setbuf(stdout,NULL);
     int numthreads = 0;
@@ -181,19 +233,9 @@ int main(int argc, char**argv, char**envp) {
     numthreads++;
     defs[numthreads].func = pipereader;
     numthreads++;
-    if (access("/tmp",F_OK) == 0 ) {
-      chmod("/tmp",S_IXUSR|S_IWUSR|S_IRUSR);
-    } else {
-      mkdir("/tmp",S_IXUSR|S_IWUSR|S_IRUSR);
-    };
-    if (access(PIPE_NAME,F_OK) != 0 ) {
-      if (mkfifo(PIPE_NAME, 0666) == -1) {
-        perror("Failed to create named pipe");
-        return EXIT_FAILURE;
-      }
-    }
+    defs[numthreads].func = useioctls;
+    numthreads++;
 
-    printf("%s will create %d threads\n",argv[0],numthreads);
  
     // Create the threads
     for(int i = 0; i < numthreads; i++) {
@@ -205,6 +247,7 @@ int main(int argc, char**argv, char**envp) {
         }
     }
 
+    printf("Created %d threads\n",numthreads);
     // Wait for all threads to finish
     for(int i = 0; i < numthreads; i++) {
       int *threadstatus;
@@ -212,7 +255,84 @@ int main(int argc, char**argv, char**envp) {
       printf("Joined with thread %d which exited 0x%x\n", i,*threadstatus);
       free(threadstatus);
     }
+    
+    return numthreads;
+}
 
-    unlink(PIPE_NAME);
-    return 0;
+int fork_demon(){
+  pid_t cpid;
+  int fd;
+  char inchar[1];
+  int bytesread=0;
+  cpid = fork();
+  if (cpid == 0) {
+    fd = dup(0);
+    while (bytesread != 1) {
+      bytesread = read(fd,inchar,1);
+    }
+    exit(inchar[0]);
+  } else {
+    return cpid;
+  }
+}
+
+int fork_and_wait(){
+  pid_t cpid,w;
+  int status,fd;
+  char inchar[1];
+  int bytesread=0;
+  cpid = fork();
+  if (cpid == 0) {
+    fd = dup(0);
+    while (bytesread != 1) {
+      bytesread = read(fd,inchar,1);
+    }
+    exit(inchar[0]);
+  } else {
+    /* Parent */
+    do {
+      w = waitpid(cpid,&status, WUNTRACED | WCONTINUED);
+      if (w == -1) {
+	perror("Waitpid failed");
+	exit(-1);
+      }
+      if (WIFEXITED(status)) {
+	printf("exited, status=%d\n", WEXITSTATUS(status));
+      } else if (WIFSIGNALED(status)) {
+	printf("killed by signal %d\n", WTERMSIG(status));
+      } else if (WIFSTOPPED(status)) {
+	printf("stopped by signal %d\n", WSTOPSIG(status));
+      } else if (WIFCONTINUED(status)) {
+	printf("continued\n");
+      }
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+  }   
+}
+
+
+
+
+int main(int argc, char**argv, char**envp) {
+  int numthreads;
+  int demon_pid;
+  if (access(PIPE_NAME,F_OK) != 0 ) {
+    if (mkfifo(PIPE_NAME, 0666) == -1) {
+      perror("Failed to create named pipe");
+      return EXIT_FAILURE;
+    }
+  }
+
+  if (access("/tmp",F_OK) == 0 ) {
+    chmod("/tmp",S_IXUSR|S_IWUSR|S_IRUSR);
+  } else {
+    mkdir("/tmp",S_IXUSR|S_IWUSR|S_IRUSR);
+  };
+
+  demon_pid = fork_demon();
+  fork_and_wait();
+  numthreads = makethreads();
+
+  waitpid(demon_pid,NULL, WUNTRACED | WCONTINUED);
+  unlink(PIPE_NAME);
+  return numthreads;
 }
