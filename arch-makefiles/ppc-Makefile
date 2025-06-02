@@ -5,6 +5,9 @@ SCRIPTS = $(wildcard ../generic-tests/*.sh)
 all:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) scripts
 expall:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) $(TESTS:../generic-tests/%.c=%-eb-dyn) $(TESTS:../generic-tests/%.c=%-eb-stat) scripts
 
+tests: ${SCRIPTS}
+	 echo ${SCRIPTS}
+
 scripts: ${SCRIPTS}
 	 cp ${SCRIPTS} .
 
