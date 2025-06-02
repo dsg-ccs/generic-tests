@@ -17,9 +17,10 @@ FILE* file;
 void *client_thread(void *id) {
     int thread_id = *((int*)id);
     int sock = 0;
-    struct sockaddr_in server_addr;
+    struct sockaddr_in server_addr, peer_addr;
     char *message = "Hello from client";
     char buffer[BUFFER_SIZE] = {0};
+    socklen_t peer_len = sizeof(peer_addr);
 
     // Create socket
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -43,6 +44,16 @@ void *client_thread(void *id) {
         return NULL;
     }
 
+    
+    if (getpeername(sock, (struct sockaddr *)&peer_addr, &peer_len) < 0) {
+        printf("getpeername failed\n");
+        return NULL;
+    } else {
+      char ip[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &peer_addr.sin_addr, ip, sizeof(ip));
+      printf("Connected to %s:%d\n", ip, ntohs(peer_addr.sin_port));
+    }
+    
     sleep(6-2*thread_id);
     // Send a message to the server
     sprintf(buffer,"%s %d",message,thread_id);

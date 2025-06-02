@@ -219,7 +219,6 @@ void *useioctls(void *id) {
 
 int makethreads() {
     struct threaddef defs[MAXTHREADS];
-    setbuf(stdout,NULL);
     int numthreads = 0;
     defs[numthreads].func = print_thread_id;
     numthreads++;
@@ -287,7 +286,7 @@ int fork_and_wait(){
     while (bytesread != 1) {
       bytesread = read(fd,inchar,1);
     }
-    exit(inchar[0]);
+    return (int) inchar[0];
   } else {
     /* Parent */
     do {
@@ -315,6 +314,7 @@ int fork_and_wait(){
 int main(int argc, char**argv, char**envp) {
   int numthreads;
   int demon_pid;
+  setbuf(stdout,NULL);
   if (access(PIPE_NAME,F_OK) != 0 ) {
     if (mkfifo(PIPE_NAME, 0666) == -1) {
       perror("Failed to create named pipe");
