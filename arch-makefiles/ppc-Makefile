@@ -1,12 +1,9 @@
-VPATH=../generic-tests
+VPATH=../..
 GCC=powerpc-linux-gnu-gcc
-TESTS = $(wildcard ../generic-tests/*.c)
-SCRIPTS = $(wildcard ../generic-tests/*.sh)
-all:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) scripts
-expall:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) $(TESTS:../generic-tests/%.c=%-eb-dyn) $(TESTS:../generic-tests/%.c=%-eb-stat) scripts
-
-tests: ${SCRIPTS}
-	 echo ${SCRIPTS}
+TESTS = $(wildcard ${VPATH}/*.c)
+SCRIPTS = $(wildcard ${VPATH}/*.sh)
+all:	$(TESTS:${VPATH}/%.c=%-dyn) $(TESTS:${VPATH}/%.c=%-stat) scripts
+expall:	$(TESTS:${VPATH}/%.c=%-dyn) $(TESTS:${VPATH}/%.c=%-stat) $(TESTS:${VPATH}/%.c=%-eb-dyn) $(TESTS:${VPATH}/%.c=%-eb-stat) scripts
 
 scripts: ${SCRIPTS}
 	 cp ${SCRIPTS} .
