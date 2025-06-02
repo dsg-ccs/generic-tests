@@ -1,0 +1,26 @@
+VPATH=../generic-tests
+GCC=arm-linux-gnueabi-gcc
+TESTS = $(wildcard ../generic-tests/*.c)
+SCRIPTS = $(wildcard ../generic-tests/*.sh)
+all:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) scripts
+expall:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) $(TESTS:../generic-tests/%.c=%-eb-dyn) $(TESTS:../generic-tests/%.c=%-eb-stat) scripts
+
+scripts: ${SCRIPTS}
+	 cp ${SCRIPTS} .
+
+# default is little endian
+%-dyn:	%.c
+	${GCC} $< -o $@
+%-stat:	%.c
+	${GCC} --static $< -o $@
+# try making big endian
+%-eb-dyn:	%.c
+	${GCC} -Wa,-EB $< -o $@
+%-eb-stat:	%.c
+	${GCC} -Wa,-EB --static $< -o $@
+
+
+clean:
+	rm *-dyn
+	rm *-stat
+	

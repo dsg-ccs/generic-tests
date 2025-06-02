@@ -1,0 +1,17 @@
+VPATH=../generic-tests
+GCC=gcc
+TESTS = $(wildcard ../generic-tests/*.c)
+SCRIPTS = $(wildcard ../generic-tests/*.sh)
+all:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) scripts
+
+scripts: ${SCRIPTS}
+	 cp ${SCRIPTS} .
+
+%-dyn:	%.c
+	${GCC} -g $< -o $@
+%-stat:	%.c
+	${GCC} -g --static $< -o $@
+
+clean:
+	rm *-dyn
+	
