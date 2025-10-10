@@ -11,6 +11,7 @@
 #define PORT 12345
 #define BUF_SIZE 1024
 #define NUMBUFS 2
+FILE* file;
 
 void *recv_thread(void* tid) {
     int i;
@@ -55,6 +56,10 @@ void *recv_thread(void* tid) {
     msg.msg_iovlen = NUMBUFS;
 
     printf("Waiting for message on port %d...\n", PORT);
+    // Note that sizeof can be long or not in various arches
+    printf("msg struct %p, name field %p, name len field %p, iov field %p, struct size %x\n",
+	   &msg,&msg.msg_name,&msg.msg_namelen,&msg.msg_iov,(int)sizeof(msg));
+    fflush(file);
 
     // Receive the message
     ssize_t bytes_received = recvmsg(sockfd, &msg, 0);
@@ -67,10 +72,12 @@ void *recv_thread(void* tid) {
     // print the message using its length
     char ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &sender_addr.sin_addr, ip, sizeof(ip));
-    printf("Received message: '%.*s' from %s:%d  %d:%d:\n",
-           msg.msg_namelen, (char *) msg.msg_name, ip, ntohs(sender_addr.sin_port),sender_addr.sin_addr.s_addr,sender_addr.sin_port);
+    printf("Received message: %p for %d bytes from %s:%d  %d:%d:\n",
+           (char *) msg.msg_name, msg.msg_namelen, ip, ntohs(sender_addr.sin_port),sender_addr.sin_addr.s_addr,sender_addr.sin_port);
+    fflush(file);
     for (i=0; i<NUMBUFS; i++) {
       printf(" '%.*s'\n",  (int) iov[i].iov_len,  (char *) iov[i].iov_base);
+      fflush(file);
     }
 
 
@@ -112,6 +119,7 @@ void *sender_thread(void *id) {
            msg.msg_namelen, (char *) msg.msg_name, PORT);
     printf(" '%s'\n",msg_text);
     printf(" '%s'\n",msg_text2);
+    fflush(file);
     sendmsg(sockfd, &msg, 0);
 
     close(sockfd);
