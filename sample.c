@@ -4,6 +4,7 @@
 #include <sched.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+FILE* file;
 
 int fn(void *arg)
 {
@@ -13,8 +14,10 @@ int fn(void *arg)
    
    int n = atoi(arg);
 
-   for ( i = 1 ; i <= 10 ; i++ )
+   for ( i = 1 ; i <= 3 ; i++ ) {
       printf("%d * %d = %d\n", n, i, (n*i));
+      fflush(file);
+   }
 
    printf("\n");
 
@@ -23,7 +26,14 @@ int fn(void *arg)
 
 void main(int argc, char *argv[])
 {
+  int i;
+  FILE* file = stdout;
+  pid_t cpid,w;
+  int status;
    printf("Hello, World!\n");
+   for (i = 1; i< argc; i++)
+     printf("Arg %d: %s",i,argv[i]);
+   fflush(file);
 
    void *pchild_stack = malloc(1024 * 1024);
    if ( pchild_stack == NULL ) {
@@ -37,8 +47,23 @@ void main(int argc, char *argv[])
         exit(EXIT_FAILURE);
    }
 
-   wait(NULL);
 
+  do {
+    w = waitpid(0,&status, WUNTRACED | WCONTINUED);
+    if (w == -1) {
+      // No more children were left
+      break;
+    }
+    if (WIFEXITED(status)) {
+      printf("exited, status=%d\n", WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+      printf("killed by signal %d\n", WTERMSIG(status));
+    } else if (WIFSTOPPED(status)) {
+      printf("stopped by signal %d\n", WSTOPSIG(status));
+    } else if (WIFCONTINUED(status)) {
+      printf("continued\n");
+    }
+  } while (!WIFEXITED(status) && !WIFSIGNALED(status));
    free(pchild_stack);
 
    printf("INFO: Child process terminated.\n");

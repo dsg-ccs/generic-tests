@@ -3,6 +3,7 @@
    Licensed under GNU General Public License v2 or later.
 */
 #define _XOPEN_SOURCE 600
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -49,6 +50,8 @@ displayClock(clockid_t clock, const char *name, bool showRes)
 int
 main(int argc, char *argv[])
 {
+  int fd;
+  clockid_t clkid;
     bool showRes = argc > 1;
 
     displayClock(CLOCK_REALTIME, "CLOCK_REALTIME", showRes);
@@ -59,5 +62,11 @@ main(int argc, char *argv[])
 #ifdef CLOCK_BOOTTIME
     displayClock(CLOCK_BOOTTIME, "CLOCK_BOOTTIME", showRes);
 #endif
+    // Add a dynamic clock
+    fd = open("/dev/ptp0",O_RDWR);
+    // Make a clock id of 3 combined with fd
+    #define FD_TO_CLOCKID(fd)   ((~(clockid_t) (fd) << 3) | 3)
+    clkid = FD_TO_CLOCKID(fd);
+    displayClock(clkid, "/dev/ptp0", showRes);
     exit(EXIT_SUCCESS);
 }

@@ -3,11 +3,11 @@
 int main(int argc, char **argv, char**envp) {
   printf("Main program %s started with %d args\n",argv[0],argc);
   if (argc == 1) {
-    char* argv[] = { "argument1", "argument with spaces", NULL };
-    char* envp[] = { "some", "environment", NULL };
+    char* myargv[] = { "argument1", "argument with spaces", NULL };
+    char* myenvp[] = { "some", "environment", NULL };
     
-    if (execve("./hello.static", argv, envp) == -1) {
-      printf("Failed to start ./hello.static\n");
+    if (execve("./hello-stat", myargv, myenvp) == -1) {
+      printf("Failed to start ./hello-stat\n");
       perror("Could not execve");
     }
   } else {
