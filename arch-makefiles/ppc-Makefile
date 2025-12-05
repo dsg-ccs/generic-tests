@@ -1,4 +1,4 @@
-VPATH=../..
+VPATH=../generic-tests
 GCC=powerpc-linux-gnu-gcc
 TESTS = $(wildcard ${VPATH}/*.c)
 SCRIPTS = $(wildcard ${VPATH}/*.sh)

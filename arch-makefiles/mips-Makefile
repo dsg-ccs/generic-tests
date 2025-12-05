@@ -1,7 +1,7 @@
 VPATH=../generic-tests
 GCC=mips-linux-gnu-gcc -march=mips32r5
-TESTS = $(wildcard ../generic-tests/*.c)
-all:	$(TESTS:../generic-tests/%.c=%-dyn) $(TESTS:../generic-tests/%.c=%-stat) # $(TESTS:../generic-tests/%.c=%-el-dyn) $(TESTS:../generic-tests/%.c=%-el-stat)
+TESTS = $(wildcard ${VPATH}/*.c)
+all:	$(TESTS:${VPATH}/%.c=%-dyn) $(TESTS:${VPATH}/%.c=%-stat) # $(TESTS:${VPATH}/%.c=%-el-dyn) $(TESTS:${VPATH}/%.c=%-el-stat)
 
 # default is big endian
 %-dyn:	%.c
